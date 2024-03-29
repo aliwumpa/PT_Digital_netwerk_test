@@ -62,8 +62,6 @@ const search = () => {
 
     if (foundHospital) {
       const latLng = L.latLng(foundHospital.lat, foundHospital.lng);
-      const marker = L.marker([foundHospital.lat, foundHospital.lng]);
-      marker.openPopup();
       map.setView(latLng, 13); 
     } else {
       alert("No matching hospital found.");
@@ -101,10 +99,13 @@ const fetchHospitalData = () => {
           });
 
           const marker = L.marker([lat, lng]).addTo(map)
-            .bindPopup(`<b>${hospital.name}</b><br>${hospital.address}`);
-          marker.on('popupclose', () => {
-            map.setView(initialIndonesiaCords, initialZoom);
-          });
+            .bindPopup(`<b>${hospital.name}</b><br>${hospital.address}`)
+            .on('mouseover', function () {
+              this.openPopup();
+            })
+            .on('mouseout', function () {
+              this.closePopup();
+            });
         }
       }
 
