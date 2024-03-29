@@ -5,6 +5,7 @@
       <input type="text" v-model="hospitalNameSearch" placeholder="Search by hospital name">
       <button @click="search" :disabled="isFetching">Search</button>
     </div>
+    <div v-if="showError" class="error-message">Please enter both city and hospital name.</div>
     <div class="leaflet-map-container">
       <div id="mapContainer"></div>
     </div>
@@ -28,6 +29,7 @@ const citySearch = ref<string>("");
 const hospitalNameSearch = ref<string>("");
 const refHospital = ref([]);
 const isFetching = ref<boolean>(true);
+const showError = ref<boolean>(false);
 
 let map;
 
@@ -47,12 +49,16 @@ const search = () => {
   const searchCity = citySearch.value.trim().toLowerCase();
   const searchHospital = hospitalNameSearch.value.trim().toLowerCase();
 
-  if (searchCity || searchHospital) {
+  if (searchCity !== "" && searchHospital !== "") {
+    showError.value = false;
+
     const foundHospital = refHospital.value.find(hospital => {
-      const hospitalCity = hospital.cityName;
-      const hospitalName = hospital.name.toLowerCase();
-      return hospitalCity.includes(searchCity) || hospitalName.includes(searchHospital);
+      const hospitalCity = hospital.cityName.toLowerCase(); 
+      const hospitalName = hospital.name.toLowerCase(); 
+      return hospitalCity.includes(searchCity) && hospitalName.includes(searchHospital);
     });
+
+    console.log(foundHospital);
 
     if (foundHospital) {
       const latLng = L.latLng(foundHospital.lat, foundHospital.lng);
@@ -63,7 +69,7 @@ const search = () => {
       alert("No matching hospital found.");
     }
   } else {
-    alert("Enter city or hospital name to search.");
+    showError.value = true;
   }
 };
 
@@ -76,20 +82,18 @@ const fetchHospitalData = () => {
       return response.json();
     })
     .then(async (hospitalData) => {
+      isFetching.value = false;
+
       for (const hospital of hospitalData) {
-        // Pass parameter cityName data value to convert city to coordinates function
         const region = hospital.region;
         const regex = /KOTA\s([^,]+)/;
         let regionName = region.replace(regex, "$1");
-
         const coordinates = await convertCityToCoordinates(regionName);
 
-        if(coordinates) {
+        if (coordinates) {
           const { lat, lng } = coordinates;
-
-          //store data to temp
           refHospital.value.push({
-            name: hospital.name,
+            name: hospital.name.toLowerCase(),
             address: hospital.address,
             cityName: regionName.toLowerCase(),
             lat,
@@ -97,17 +101,15 @@ const fetchHospitalData = () => {
           });
 
           const marker = L.marker([lat, lng]).addTo(map)
-            .bindPopup(`<b>${hospital.name}</b><br>${hospital.address}`)
-            .openPopup();
-          marker.options.city = regionName.toLowerCase();
-          marker.options.hospital = hospital.name.toLowerCase();
+            .bindPopup(`<b>${hospital.name}</b><br>${hospital.address}`);
           marker.on('popupclose', () => {
-            map.setView(initialIndonesiaCords, initialZoom); // Reset map view to default
+            map.setView(initialIndonesiaCords, initialZoom);
           });
         }
       }
 
-      isFetching.value = false;
+      // After adding all markers, set the map's view
+      map.setView(initialIndonesiaCords, initialZoom);
     })
     .catch(error => {
       isFetching.value = false;
@@ -194,10 +196,11 @@ const convertCityToCoordinates = async (city) => {
   width: 100%;
   height: 100dvh;
 }
+
+.error-message {
+  color: red;
+  margin-top: 5px;
+  padding-left: 30px;
+  padding-bottom: 20px;
+}
 </style>
-
-
-
-
-
-
